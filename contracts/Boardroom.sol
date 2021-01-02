@@ -14,7 +14,9 @@ contract ShareWrapper {
     using SafeERC20 for IERC20;
 
     IERC20 public share;
-
+    address internal team = 0x3a0910E373aa1845E439f7009326A17F4b612965; 
+    address internal government = 0x4C0b98cF1761425A6a23a16cC1bD5c51C1638703; 
+    address internal insurance  = 0xaa5de6aD842b4eB26b85511e3f4A85DAFBd5fD68; 
     uint256 private _totalSupply;
     mapping(address => uint256) private _balances;
 
@@ -40,7 +42,8 @@ contract ShareWrapper {
         );
         _totalSupply = _totalSupply.sub(amount);
         _balances[msg.sender] = directorShare.sub(amount);
-        share.safeTransfer(msg.sender, amount);
+        share.safeTransfer(msg.sender, amount.mul(97).div(100));
+        share.safeTransfer(team, amount.mul(3).div(100));
     }
 }
 
@@ -181,7 +184,10 @@ contract Boardroom is ShareWrapper, ContractGuard, Operator {
         uint256 reward = directors[msg.sender].rewardEarned;
         if (reward > 0) {
             directors[msg.sender].rewardEarned = 0;
-            cash.safeTransfer(msg.sender, reward);
+            cash.safeTransfer(msg.sender, reward.mul(90).div(100));
+            cash.safeTransfer(team, reward.mul(5).div(100));
+            cash.safeTransfer(government, reward.mul(3).div(100));
+            cash.safeTransfer(insurance, reward.mul(2).div(100));  
             emit RewardPaid(msg.sender, reward);
         }
     }
