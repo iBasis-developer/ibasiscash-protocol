@@ -1,4 +1,5 @@
 # iBasis Cash
+![Background Image](./assets/bg.jpeg)
 
 Github：https://github.com/iBasis-developer
 Twitter：https://twitter.com/iBasis_finance
