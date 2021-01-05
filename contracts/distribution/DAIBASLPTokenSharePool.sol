@@ -64,10 +64,13 @@ import '../interfaces/IRewardDistributionRecipient.sol';
 
 import '../token/LPTokenWrapper.sol';
 
+import '../interfaces/IInvitation.sol';
+
 contract DAIiBASLPTokenSharePool is
     LPTokenWrapper
 {
-    IERC20 public basisShare;
+    IERC20 public ibasisShare;
+    IInvitation public invitation;
     uint256 public constant DURATION = 30 days;
 
     uint256 public initreward = 64000 * 10**18; 
@@ -85,17 +88,18 @@ contract DAIiBASLPTokenSharePool is
     event RewardPaid(address indexed user, uint256 reward);
 
     constructor(
-        address basisShare_,
+        address ibasisShare_,
         address lptoken_,
-        uint256 starttime_
+        uint256 starttime_,
+        address invitation_
     ) public {
-        basisShare = IERC20(basisShare_);
+        ibasisShare = IERC20(ibasisShare_);
         lpt = IERC20(lptoken_);
         starttime = starttime_;
         rewardRate = initreward.div(DURATION);
         lastUpdateTime = starttime;
         periodFinish = starttime.add(DURATION);
-        emit RewardAdded(uint256(25).mul(10000).mul(10**18));
+        invitation = IInvitation(invitation_);
     }
 
     modifier updateReward(address account) {
@@ -168,11 +172,21 @@ contract DAIiBASLPTokenSharePool is
         uint256 reward = earned(msg.sender);
         if (reward > 0) {
             rewards[msg.sender] = 0;
-            basisShare.safeTransfer(msg.sender, reward.mul(90).div(100)); //90%
-            basisShare.safeTransfer(team, reward.mul(5).div(100)); //5%
-            basisShare.safeTransfer(government, reward.mul(3).div(100)); //3%
-            basisShare.safeTransfer(insurance , reward.mul(2).div(100)); //2%
-            emit RewardPaid(msg.sender, reward.mul(90).div(100));
+            ibasisShare.safeTransfer(msg.sender, reward); //100%
+            ibasisShare.safeTransfer(team, reward.mul(5).div(100)); //5%
+            ibasisShare.safeTransfer(government, reward.mul(3).div(100)); //3%
+            ibasisShare.safeTransfer(insurance , reward.mul(2).div(100)); //2%
+            address inviter = invitation.getInviter(msg.sender);
+            address inviter2 = invitation.getInviter(inviter);
+            if(inviter!=address(0) && inviter != address(1)) {
+                ibasisShare.safeTransfer(inviter,reward.mul(2).div(100));
+                emit InvitationReward(inviter, 1, reward.mul(2).div(100));
+            } 
+            if(inviter2!=address(0) && inviter2 != address(1)) {
+                ibasisShare.safeTransfer(inviter2,reward.mul(1).div(100));
+                emit InvitationReward(inviter2, 2, reward.mul(1).div(100));
+            }
+            emit RewardPaid(msg.sender, reward);
         }
     }
 

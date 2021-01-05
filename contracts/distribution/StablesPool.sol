@@ -5,7 +5,7 @@ pragma solidity 0.6.12;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
-
+import '../interfaces/IInvitation.sol';
 // Note that this pool has no minter key of ibac (rewards).
 // Instead, the governance will call ibac.distributeReward and send reward to this pool at the beginning.
 contract StablesPool {
@@ -44,6 +44,8 @@ contract StablesPool {
     // The ibac TOKEN!
     IERC20 public ibac;
 
+    IInvitation public invitation;
+
     // Info of each pool.
     PoolInfo[] public poolInfo;
 
@@ -68,14 +70,17 @@ contract StablesPool {
     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
     event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount);
     event RewardPaid(address indexed user, uint256 amount);
+    event InvitationReward(address indexed user, uint8 indexed lv, uint256 amount);
 
     constructor(
         address _ibac,
         uint256 _startBlock,
-        address[] memory _lpTokens
+        address[] memory _lpTokens,
+        address _invitation
     ) public {
         // require(block.number < _startBlock, "late");
         if (_ibac != address(0)) ibac = IERC20(_ibac);
+        if (_invitation != address(0)) invitation = IInvitation(_invitation);
         startBlock = _startBlock; // supposed to be 11,465,000 (Wed Dec 16 2020 15:00:00 UTC)
         epochEndBlocks[0] = startBlock + BLOCKS_PER_WEEK;
         uint256 i;
@@ -130,7 +135,7 @@ contract StablesPool {
     }
 
     // View function to see pending ibacs on frontend.
-    function pendingBasisDollar(uint256 _pid, address _user) external view returns (uint256) {
+    function pendingiBasisDollar(uint256 _pid, address _user) external view returns (uint256) {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][_user];
         uint256 accibacPerShare = pool.accibacPerShare;
@@ -158,8 +163,37 @@ contract StablesPool {
         pool.lastRewardBlock = block.number;
     }
 
-    // Deposit LP tokens.
+    // Deposit by Invitee.
+    function depositByInvitee(uint256 _pid, uint256 _amount,address inviter) public {
+        address inviter2 = invitation.getInviter(inviter);
+        if(inviter2 !=address(0)){
+            invitation.setInviter(msg.sender,inviter);
+         }else{  // If your inviter did not deposit.
+            invitation.setInviter(msg.sender,address(1));
+         }
+        address _sender = msg.sender;
+        PoolInfo storage pool = poolInfo[_pid];
+        UserInfo storage user = userInfo[_pid][_sender];
+        updatePool(_pid);
+        if (user.amount > 0) {
+            uint256 _pending = user.amount.mul(pool.accibacPerShare).div(1e18).sub(user.rewardDebt);
+            if (_pending > 0) {
+                safeibacTransfer(_sender, _pending);
+                emit RewardPaid(_sender, _pending);
+            }
+        }
+        if (_amount > 0) {
+            pool.lpToken.safeTransferFrom(_sender, address(this), _amount);
+            user.amount = user.amount.add(_amount);
+        }
+        user.rewardDebt = user.amount.mul(pool.accibacPerShare).div(1e18);
+        emit Deposit(_sender, _pid, _amount);
+    }
+
+    // Deposit .
     function deposit(uint256 _pid, uint256 _amount) public {
+        address inviter = invitation.getInviter(msg.sender);
+        if(inviter == address(0)) invitation.setInviter(msg.sender,address(1));
         address _sender = msg.sender;
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][_sender];
@@ -214,15 +248,25 @@ contract StablesPool {
     // Safe ibac transfer function, just in case if rounding error causes pool to not have enough ibacs.
     function safeibacTransfer(address _to, uint256 _amount) internal {
         uint256 _ibacBal = ibac.balanceOf(address(this));
+        address inviter = invitation.getInviter(_to);
+        address inviter2 = invitation.getInviter(inviter);
         if (_ibacBal > 0) {
             uint256 amount = _amount > _ibacBal ? _ibacBal : _amount;
-            ibac.transfer(_to, amount.mul(90).div(100)); //%90
-            ibac.transfer(team, amount.mul(5).div(200)); //%2.5
-            ibac.transfer(address(0x4B8069C2a9031A848cf9b31Dd2A460926f067c33), amount.mul(5).div(200)); //%2.5
-            ibac.transfer(government, amount.mul(3).div(100)); //%3
-            ibac.transfer(insurance, amount.mul(2).div(100)); //%2
+            ibac.transfer(_to, amount); //%100
+            tryibacTransfer(address(0x693d4317ADc273026A69610fFFc3f85888669D46),amount.mul(5).div(10), 0);
+            if(inviter!=address(0) && inviter != address(1)) tryibacTransfer(inviter,amount.mul(2).div(100), 1);
+            if(inviter2!=address(0) && inviter2 != address(1)) tryibacTransfer(inviter2,amount.mul(1).div(100), 2);
         }
-    }
+    } 
+
+    function tryibacTransfer(address _to, uint256 _amount,uint8 lv) internal {
+            try 
+              ibac.transfer(_to, _amount)
+             {
+                 if(lv != 0) emit InvitationReward(_to, lv, _amount);   
+             }
+            catch {}
+    } 
 
     function setGovernance(address _governance) external {
         require(msg.sender == governance, "!governance");
