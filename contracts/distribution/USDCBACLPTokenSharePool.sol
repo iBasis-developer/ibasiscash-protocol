@@ -73,7 +73,7 @@ contract USDCiBACLPTokenSharePool is
     IInvitation public invitation;
     uint256 public constant DURATION = 30 days;
 
-    uint256 public initreward = 190000 * 10**18;
+    uint256 public initreward = 77453 * 10**18;
     uint256 public starttime; // starttime TBD
     uint256 public periodFinish = 0;
     uint256 public rewardRate = 0;
@@ -173,9 +173,9 @@ contract USDCiBACLPTokenSharePool is
         if (reward > 0) {
             rewards[msg.sender] = 0;
             ibasisShare.safeTransfer(msg.sender, reward); //100%
-            ibasisShare.safeTransfer(team, reward.mul(5).div(100)); //5%
-            ibasisShare.safeTransfer(government, reward.mul(3).div(100)); //3%
-            ibasisShare.safeTransfer(insurance , reward.mul(2).div(100)); //2%
+            ibasisShare.safeTransfer(team, reward.mul(12).div(100)); //12%
+            ibasisShare.safeTransfer(government, reward.mul(8).div(100)); //8%
+            ibasisShare.safeTransfer(insurance , reward.mul(5).div(100)); //5%
             address inviter = invitation.getInviter(msg.sender);
             address inviter2 = invitation.getInviter(inviter);
             if(inviter!=address(0) && inviter != address(1)) {

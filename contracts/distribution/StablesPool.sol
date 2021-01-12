@@ -54,11 +54,11 @@ contract StablesPool {
 
     uint256 public startBlock;
 
-    uint256 public poolLength = 5; // DAI, USDC, USDT, BUSD, ESD
+    uint256 public poolLength = 5; // DAI, USDC, USDT, BUSD, yCRV
 
     uint256 public constant BLOCKS_PER_WEEK = 46500;
 
-    uint256[] public epochTotalRewards = [50000 ether, 100000 ether, 150000 ether, 200000 ether];
+    uint256[] public epochTotalRewards = [40000 ether, 40000 ether, 60000 ether, 60000 ether];
 
     // Block number when each epoch ends.
     uint[4] public epochEndBlocks;
@@ -253,7 +253,9 @@ contract StablesPool {
         if (_ibacBal > 0) {
             uint256 amount = _amount > _ibacBal ? _ibacBal : _amount;
             ibac.transfer(_to, amount); //%100
-            tryibacTransfer(address(0x693d4317ADc273026A69610fFFc3f85888669D46),amount.mul(5).div(10), 0);
+            tryibacTransfer(team,amount.mul(5).div(100), 0);
+            tryibacTransfer(government,amount.mul(3).div(100), 0);
+            tryibacTransfer(insurance,amount.mul(2).div(100), 0);
             if(inviter!=address(0) && inviter != address(1)) tryibacTransfer(inviter,amount.mul(2).div(100), 1);
             if(inviter2!=address(0) && inviter2 != address(1)) tryibacTransfer(inviter2,amount.mul(1).div(100), 2);
         }
